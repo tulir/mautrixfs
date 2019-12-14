@@ -8,3 +8,7 @@ require (
 )
 
 replace gopkg.in/russross/blackfriday.v2 => github.com/russross/blackfriday/v2 v2.0.1
+
+replace maunium.net/go/mautrix => ../../Matrix/mautrix-go
+
+replace github.com/hanwen/go-fuse/v2 => ../../Go/go-fuse

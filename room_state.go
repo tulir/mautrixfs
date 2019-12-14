@@ -18,6 +18,8 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"syscall"
 
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -26,40 +28,30 @@ import (
 	"maunium.net/go/mautrix"
 )
 
-type RoomRoot struct {
+type RoomStateRoot struct {
 	fs.Inode
 
+	room *RoomNode
 	client *mautrix.Client
-	rooms  map[string]*RoomNode
 }
 
-func (r *RoomRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+func (state *RoomStateRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Mode = 0555
 	return OK
 }
 
-func (r *RoomRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	if child := r.GetChild(name); child != nil {
-		return child, OK
-	}
-	var content = make(map[string]interface{})
-	err := r.client.StateEvent(name, mautrix.StateCreate, "", &content)
-	if err != nil {
+func (state *RoomStateRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	fmt.Println("State lookup", name)
+	url := state.client.BuildURL("rooms", state.room.ID, "state", name)
+	data, err := state.client.MakeRequest(http.MethodGet, url, nil, nil)
+	if err != nil || data == nil {
 		return nil, syscall.ENOENT
 	}
-	version, ok := content["room_version"].(string)
-	if !ok {
-		version = "1"
-	}
 
-	roomNode := &RoomNode{
-		Room: mautrix.Room{
-			ID:    name,
-			State: make(map[mautrix.EventType]map[string]*mautrix.Event),
+	return state.NewInode(ctx, &fs.MemRegularFile{
+		Data:  data,
+		Attr:  fuse.Attr{
+			Mode: 0444,
 		},
-		Version: version,
-		client:  r.client,
-	}
-	inode := r.NewInode(ctx, roomNode, fs.StableAttr{Mode: syscall.S_IFDIR})
-	return inode, OK
+	}, fs.StableAttr{ Mode: syscall.S_IFREG }), OK
 }

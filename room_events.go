@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"syscall"
@@ -31,30 +32,47 @@ import (
 type RoomEventRoot struct {
 	fs.Inode
 
-	room *RoomNode
+	room   *RoomNode
 	client *mautrix.Client
 }
+
+var _ = (fs.NodeGetattrer)((*RoomEventRoot)(nil))
+var _ = (fs.NodeLookuper)((*RoomEventRoot)(nil))
+var _ = (fs.NodeUnlinker)((*RoomEventRoot)(nil))
 
 func (events *RoomEventRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Mode = 0555
 	return OK
 }
 
-func (events *RoomEventRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+func (events *RoomEventRoot) mutateEventID(eventID string) string {
 	if events.room.Version == "3" {
-		name = strings.ReplaceAll(name,"-", "+")
-		name = strings.ReplaceAll(name,"_", "/")
+		eventID = strings.ReplaceAll(eventID, "-", "+")
+		eventID = strings.ReplaceAll(eventID, "_", "/")
 	}
-	url := events.client.BuildURL("rooms", events.room.ID, "event", name)
+	return eventID
+}
+
+func (events *RoomEventRoot) Unlink(ctx context.Context, name string) syscall.Errno {
+	eventID := events.mutateEventID(name)
+	fmt.Println("Event unlink", eventID)
+	_, err := events.client.RedactEvent(events.room.ID, eventID)
+	return httpToErrno(err, true)
+}
+
+func (events *RoomEventRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	eventID := events.mutateEventID(name)
+	fmt.Println("Event lookup", eventID)
+
+	url := events.client.BuildURL("rooms", events.room.ID, "event", eventID)
 	data, err := events.client.MakeRequest(http.MethodGet, url, nil, nil)
 	if err != nil || data == nil {
 		return nil, syscall.ENOENT
 	}
 
-	return events.NewInode(ctx, &fs.MemRegularFile{
-		Data:  data,
-		Attr:  fuse.Attr{
-			Mode: 0444,
-		},
-	}, fs.StableAttr{ Mode: syscall.S_IFREG }), OK
+	return events.NewInode(ctx, &RoomEventNode{
+		room: events.room,
+		id:   eventID,
+		data: data,
+	}, fs.StableAttr{Mode: syscall.S_IFREG}), OK
 }

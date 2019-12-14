@@ -18,6 +18,7 @@ package main
 
 import (
 	"context"
+	"regexp"
 	"syscall"
 
 	"github.com/hanwen/go-fuse/v2/fs"
@@ -26,29 +27,31 @@ import (
 	"maunium.net/go/mautrix"
 )
 
-type MatrixRoot struct {
+type AliasRoot struct {
 	fs.Inode
 
-	client  *mautrix.Client
-	rooms   *RoomRoot
-	aliases *AliasRoot
+	client *mautrix.Client
 }
 
-func (r *MatrixRoot) OnAdd(ctx context.Context) {
-	version := r.NewPersistentInode(ctx, &fs.MemRegularFile{
-		Data: []byte("0.1.0"),
-		Attr: fuse.Attr{Mode: 0444},
-	}, fs.StableAttr{Mode: syscall.S_IFREG})
-	r.AddChild("version", version, false)
-	r.ForgetPersistent()
+var _ = (fs.NodeGetattrer)((*AliasRoot)(nil))
+var _ = (fs.NodeLookuper)((*AliasRoot)(nil))
 
-	r.aliases = &AliasRoot{client: r.client}
-	r.AddChild("alias", r.NewPersistentInode(ctx, r.aliases, fs.StableAttr{Mode: syscall.S_IFDIR}), false)
-	r.rooms = &RoomRoot{client: r.client}
-	r.AddChild("room", r.NewPersistentInode(ctx, r.rooms, fs.StableAttr{Mode: syscall.S_IFDIR}), false)
-}
+var ServerNameRegex = regexp.MustCompile("(?:(?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})|(?:\\[(?:[0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}])|(?:[\\w-.]{1,255}))(?::\\d{1,5})?")
 
-func (r *MatrixRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+func (alias *AliasRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Mode = 0555
 	return OK
+}
+
+func (alias *AliasRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	resolved := alias.GetChild(name)
+	if resolved != nil {
+		return resolved, OK
+	} else if !ServerNameRegex.MatchString(name) {
+		return nil, syscall.ENOENT
+	}
+	return alias.NewInode(ctx, &AliasServerRoot{
+		client: alias.client,
+		server: name,
+	}, fs.StableAttr{Mode: syscall.S_IFDIR}), OK
 }

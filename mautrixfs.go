@@ -19,6 +19,7 @@ package main
 import (
 	"log"
 	"os"
+	"syscall"
 
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
@@ -42,4 +43,30 @@ func main() {
 		log.Fatalf("Mount fail: %v\n", err)
 	}
 	server.Wait()
+}
+
+func httpToErrno(err error, isDelete bool) syscall.Errno {
+	if err != nil {
+		httpErr, ok := err.(mautrix.HTTPError)
+		if !ok {
+			switch err {
+
+			default:
+				return syscall.EIO
+			}
+		}
+		switch httpErr.Code {
+		case 401, 403:
+			return syscall.EACCES
+		case 404:
+			if isDelete {
+				return OK
+			} else {
+				return syscall.ENOENT
+			}
+		default:
+			return syscall.EIO
+		}
+	}
+	return OK
 }

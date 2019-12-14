@@ -11,7 +11,6 @@ not been implemented.
   * Cache stuff on disk
   * Reading events as they come down /sync
   * Media and account data
-* Maybe somewhat follow [MSC2312](https://github.com/matrix-org/matrix-doc/pull/2312) for paths.
 * Slashes are bad and URL encoding isn't nice, so for room v3 event IDs, encode/decode them to show up as room v4 event IDs.
   * Room v1/v2 are only supported if users don't modify their servers to send event IDs with slashes or null characters.
 * Eventually (not soon), support end-to-end encryption.

@@ -26,29 +26,33 @@ import (
 	"maunium.net/go/mautrix"
 )
 
-type MatrixRoot struct {
+type StateEventNode struct {
 	fs.Inode
 
-	client  *mautrix.Client
-	rooms   *RoomRoot
-	aliases *AliasRoot
+	room   *RoomNode
+	id     string
+	data   []byte
+	client *mautrix.Client
 }
 
-func (r *MatrixRoot) OnAdd(ctx context.Context) {
-	version := r.NewPersistentInode(ctx, &fs.MemRegularFile{
-		Data: []byte("0.1.0"),
-		Attr: fuse.Attr{Mode: 0444},
-	}, fs.StableAttr{Mode: syscall.S_IFREG})
-	r.AddChild("version", version, false)
-	r.ForgetPersistent()
+var _ = (fs.NodeGetattrer)((*StateEventNode)(nil))
+var _ = (fs.NodeOpener)((*StateEventNode)(nil))
+var _ = (fs.NodeReader)((*StateEventNode)(nil))
 
-	r.aliases = &AliasRoot{client: r.client}
-	r.AddChild("alias", r.NewPersistentInode(ctx, r.aliases, fs.StableAttr{Mode: syscall.S_IFDIR}), false)
-	r.rooms = &RoomRoot{client: r.client}
-	r.AddChild("room", r.NewPersistentInode(ctx, r.rooms, fs.StableAttr{Mode: syscall.S_IFDIR}), false)
-}
-
-func (r *MatrixRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	out.Mode = 0555
+func (stateEvent *StateEventNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
+	out.Mode = 0444
+	out.Size = uint64(len(stateEvent.data))
 	return OK
+}
+
+func (stateEvent *StateEventNode) Open(ctx context.Context, flags uint32) (fh fs.FileHandle, fuseFlags uint32, errno syscall.Errno) {
+	return nil, fuse.FOPEN_KEEP_CACHE, OK
+}
+
+func (stateEvent *StateEventNode) Read(ctx context.Context, fh fs.FileHandle, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
+	end := int(off) + len(dest)
+	if end > len(stateEvent.data) {
+		end = len(stateEvent.data)
+	}
+	return fuse.ReadResultData(stateEvent.data[off:end]), OK
 }

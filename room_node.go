@@ -42,6 +42,10 @@ func (room *RoomNode) OnAdd(ctx context.Context) {
 	room.AddChild("version", version, false)
 	eventsInode := room.NewPersistentInode(ctx, &RoomEventRoot{room: room, client: room.client}, fs.StableAttr{Mode: syscall.S_IFDIR})
 	room.AddChild("event", eventsInode, false)
+	stateInode := room.NewPersistentInode(ctx, &RoomStateRoot{room: room, client: room.client}, fs.StableAttr{Mode: syscall.S_IFDIR})
+	room.AddChild("state", stateInode, false)
+	keyedStateInode := room.NewPersistentInode(ctx, &RoomKeyedStateRoot{room: room, client: room.client}, fs.StableAttr{Mode: syscall.S_IFDIR})
+	room.AddChild("keyed_state", keyedStateInode, false)
 }
 
 func (room *RoomNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
