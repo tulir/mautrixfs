@@ -1,5 +1,5 @@
 // mautrixfs - A Matrix client as a FUSE filesystem.
-// Copyright (C) 2019 Tulir Asokan
+// Copyright (C) 2020 Tulir Asokan
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -25,13 +25,13 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 
 	"maunium.net/go/mautrix"
+	"maunium.net/go/mautrix/id"
 )
 
 const OK = 0
 
 func main() {
-	mautrix.DisableFancyEventParsing = true
-	client, err := mautrix.NewClient(os.Args[2], os.Args[3], os.Args[4])
+	client, err := mautrix.NewClient(os.Args[2], id.UserID(os.Args[3]), os.Args[4])
 	if err != nil {
 		log.Fatalf("Failed to create client: %v\n", err)
 	}

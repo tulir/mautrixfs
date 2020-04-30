@@ -1,5 +1,5 @@
 // mautrixfs - A Matrix client as a FUSE filesystem.
-// Copyright (C) 2019 Tulir Asokan
+// Copyright (C) 2020 Tulir Asokan
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -25,6 +25,7 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 
 	"maunium.net/go/mautrix"
+	"maunium.net/go/mautrix/id"
 )
 
 type AliasServerRoot struct {
@@ -34,9 +35,9 @@ type AliasServerRoot struct {
 	client *mautrix.Client
 }
 
-var _ = (fs.NodeGetattrer)((*AliasServerRoot)(nil))
-var _ = (fs.NodeLookuper)((*AliasServerRoot)(nil))
-var _ = (fs.NodeUnlinker)((*AliasServerRoot)(nil))
+var _ fs.NodeGetattrer = (*AliasServerRoot)(nil)
+var _ fs.NodeLookuper = (*AliasServerRoot)(nil)
+var _ fs.NodeUnlinker = (*AliasServerRoot)(nil)
 
 func (aliasServer *AliasServerRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Mode = 0555
@@ -48,7 +49,7 @@ func (aliasServer *AliasServerRoot) Lookup(ctx context.Context, name string, out
 	if resolved != nil {
 		return resolved, OK
 	}
-	alias := fmt.Sprintf("#%s:%s", name, aliasServer.server)
+	alias := id.NewRoomAlias(name, aliasServer.server)
 	fmt.Println("Alias lookup", alias)
 	data, err := aliasServer.client.ResolveAlias(alias)
 	if err != nil || data == nil {
@@ -62,7 +63,7 @@ func (aliasServer *AliasServerRoot) Lookup(ctx context.Context, name string, out
 }
 
 func (aliasServer *AliasServerRoot) Unlink(ctx context.Context, name string) syscall.Errno {
-	alias := fmt.Sprintf("#%s:%s", name, aliasServer.server)
+	alias := id.NewRoomAlias(name, aliasServer.server)
 	fmt.Println("Alias unlink", alias)
 	_, err := aliasServer.client.DeleteAlias(alias)
 	return httpToErrno(err, true)

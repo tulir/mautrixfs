@@ -1,5 +1,5 @@
 // mautrixfs - A Matrix client as a FUSE filesystem.
-// Copyright (C) 2019 Tulir Asokan
+// Copyright (C) 2020 Tulir Asokan
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -33,10 +33,10 @@ type AliasRoot struct {
 	client *mautrix.Client
 }
 
-var _ = (fs.NodeGetattrer)((*AliasRoot)(nil))
-var _ = (fs.NodeLookuper)((*AliasRoot)(nil))
+var _ fs.NodeGetattrer = (*AliasRoot)(nil)
+var _ fs.NodeLookuper = (*AliasRoot)(nil)
 
-var ServerNameRegex = regexp.MustCompile("(?:(?:\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3})|(?:\\[(?:[0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}])|(?:[\\w-.]{1,255}))(?::\\d{1,5})?")
+var ServerNameRegex = regexp.MustCompile(`(?:(?:\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})|(?:\[(?:[0-9a-fA-F]{0,4}:){1,7}[0-9a-fA-F]{0,4}])|(?:[\w-.]{1,255}))(?::\d{1,5})?`)
 
 func (alias *AliasRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Mode = 0555

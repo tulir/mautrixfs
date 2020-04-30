@@ -1,14 +1,10 @@
 module maunium.net/go/mautrixfs
 
-go 1.13
+go 1.14
 
 require (
-	github.com/hanwen/go-fuse/v2 v2.0.2
-	maunium.net/go/mautrix v0.1.0-alpha.3.0.20191110191816-178ce1f1561d
+	github.com/hanwen/go-fuse/v2 v2.0.3
+	maunium.net/go/mautrix v0.2.0-beta.4
 )
 
-replace gopkg.in/russross/blackfriday.v2 => github.com/russross/blackfriday/v2 v2.0.1
-
-replace maunium.net/go/mautrix => ../../Matrix/mautrix-go
-
-replace github.com/hanwen/go-fuse/v2 => ../../Go/go-fuse
+replace maunium.net/go/mautrix => ../mautrix-go

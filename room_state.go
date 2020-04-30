@@ -1,5 +1,5 @@
 // mautrixfs - A Matrix client as a FUSE filesystem.
-// Copyright (C) 2019 Tulir Asokan
+// Copyright (C) 2020 Tulir Asokan
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -31,9 +31,13 @@ import (
 type RoomStateRoot struct {
 	fs.Inode
 
-	room *RoomNode
+	room   *RoomNode
 	client *mautrix.Client
 }
+
+var _ fs.NodeGetattrer = (*RoomStateRoot)(nil)
+var _ fs.NodeLookuper = (*RoomStateRoot)(nil)
+var _ fs.NodeUnlinker = (*RoomStateRoot)(nil)
 
 func (state *RoomStateRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Mode = 0555
@@ -41,17 +45,27 @@ func (state *RoomStateRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *
 }
 
 func (state *RoomStateRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	resolved := state.GetChild(name)
+	if resolved != nil {
+		return resolved, OK
+	}
 	fmt.Println("State lookup", name)
+
 	url := state.client.BuildURL("rooms", state.room.ID, "state", name)
 	data, err := state.client.MakeRequest(http.MethodGet, url, nil, nil)
 	if err != nil || data == nil {
 		return nil, syscall.ENOENT
 	}
 
-	return state.NewInode(ctx, &fs.MemRegularFile{
-		Data:  data,
-		Attr:  fuse.Attr{
-			Mode: 0444,
-		},
-	}, fs.StableAttr{ Mode: syscall.S_IFREG }), OK
+	return state.NewInode(ctx, &StateEventNode{
+		client:    state.client,
+		room:      state.room,
+		eventType: name,
+		stateKey:  "",
+		data:      data,
+	}, fs.StableAttr{Mode: syscall.S_IFREG}), OK
+}
+
+func (state *RoomStateRoot) Unlink(ctx context.Context, name string) syscall.Errno {
+	return syscall.EROFS
 }

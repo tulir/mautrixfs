@@ -1,5 +1,5 @@
 // mautrixfs - A Matrix client as a FUSE filesystem.
-// Copyright (C) 2019 Tulir Asokan
+// Copyright (C) 2020 Tulir Asokan
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -27,6 +27,7 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 
 	"maunium.net/go/mautrix"
+	"maunium.net/go/mautrix/id"
 )
 
 type RoomEventRoot struct {
@@ -36,21 +37,21 @@ type RoomEventRoot struct {
 	client *mautrix.Client
 }
 
-var _ = (fs.NodeGetattrer)((*RoomEventRoot)(nil))
-var _ = (fs.NodeLookuper)((*RoomEventRoot)(nil))
-var _ = (fs.NodeUnlinker)((*RoomEventRoot)(nil))
+var _ fs.NodeGetattrer = (*RoomEventRoot)(nil)
+var _ fs.NodeLookuper = (*RoomEventRoot)(nil)
+var _ fs.NodeUnlinker = (*RoomEventRoot)(nil)
 
 func (events *RoomEventRoot) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	out.Mode = 0555
 	return OK
 }
 
-func (events *RoomEventRoot) mutateEventID(eventID string) string {
+func (events *RoomEventRoot) mutateEventID(eventID string) id.EventID {
 	if events.room.Version == "3" {
 		eventID = strings.ReplaceAll(eventID, "-", "+")
 		eventID = strings.ReplaceAll(eventID, "_", "/")
 	}
-	return eventID
+	return id.EventID(eventID)
 }
 
 func (events *RoomEventRoot) Unlink(ctx context.Context, name string) syscall.Errno {

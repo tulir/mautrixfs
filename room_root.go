@@ -1,5 +1,5 @@
 // mautrixfs - A Matrix client as a FUSE filesystem.
-// Copyright (C) 2019 Tulir Asokan
+// Copyright (C) 2020 Tulir Asokan
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as published by
@@ -25,6 +25,8 @@ import (
 	"github.com/hanwen/go-fuse/v2/fuse"
 
 	"maunium.net/go/mautrix"
+	"maunium.net/go/mautrix/event"
+	"maunium.net/go/mautrix/id"
 )
 
 type RoomRoot struct {
@@ -44,7 +46,8 @@ func (r *RoomRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 		return child, OK
 	}
 	var content = make(map[string]interface{})
-	err := r.client.StateEvent(name, mautrix.StateCreate, "", &content)
+	roomID := id.RoomID(name)
+	err := r.client.StateEvent(roomID, event.StateCreate, "", &content)
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
@@ -55,8 +58,8 @@ func (r *RoomRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 
 	roomNode := &RoomNode{
 		Room: mautrix.Room{
-			ID:    name,
-			State: make(map[mautrix.EventType]map[string]*mautrix.Event),
+			ID:    roomID,
+			State: make(map[event.Type]map[string]*event.Event),
 		},
 		Version: version,
 		client:  r.client,
@@ -67,7 +70,7 @@ func (r *RoomRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) 
 
 type RoomListStream struct {
 	next int
-	data []string
+	data []id.RoomID
 }
 
 func (rls *RoomListStream) HasNext() bool {
@@ -78,7 +81,7 @@ func (rls *RoomListStream) Next() (fuse.DirEntry, syscall.Errno) {
 	rls.next += 1
 	return fuse.DirEntry{
 		Mode: 0555,
-		Name: rls.data[rls.next - 1],
+		Name: string(rls.data[rls.next-1]),
 	}, OK
 }
 
@@ -91,5 +94,5 @@ func (r *RoomRoot) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
 		return nil, syscall.EIO
 	}
 
-	return &RoomListStream{ data: resp.JoinedRooms }, OK
+	return &RoomListStream{data: resp.JoinedRooms}, OK
 }
